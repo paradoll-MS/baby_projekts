@@ -1,0 +1,41 @@
+{
+  "_description": "香调关键词 → 香族映射表。一级为香族，二级为具体香调关键词。可手动编辑扩充。",
+  "families": {
+    "柑橘 Citrus": {
+      "keywords": ["citrus", "orange", "lemon", "lime", "grapefruit", "bergamot", "tangerine", "mandarin", "yuzu", "citron", "citronella"]
+    },
+    "花香 Floral": {
+      "keywords": ["lavender", "rose", "jasmine", "peony", "lily", "gardenia", "lilac", "floral", "pink sands", "cherry blossom", "neroli", "ylang", "chamomile", "geranium", "freesia", "tuberose", "honeysuckle", "violet", "iris", "orchid", "magnolia", "daisy", "sunflower", "camellia", "hibiscus"]
+    },
+    "果香 Fruity": {
+      "keywords": ["apple", "pear", "peach", "berry", "fruit", "fruity", "coconut", "mango", "pineapple", "pomegranate", "fig", "cherry", "champagne", "prosecco", "watermelon", "melon", "guava", "lychee", "cranberry", "plum", "blackberry", "strawberry", "raspberry", "passion fruit"]
+    },
+    "木质 Woody": {
+      "keywords": ["sandalwood", "cedar", "cedarwood", "pine", "fir", "balsam", "mahogany", "teakwood", "teak", "oak", "birch", "cashmere", "vetiver", "santal", "bois", "cypress", "juniper", "spruce", "evergreen", "palo santo", "driftwood", "fireside", "smoke", "smoked", "redwood", "guaiac", "woody", "wood"]
+    },
+    "美食 Gourmand": {
+      "keywords": ["vanilla", "cupcake", "cake", "caramel", "pumpkin", "maple", "creme", "creme", "sugar", "sugared", "honey", "chocolate", "cocoa", "coffee", "cream", "marshmallow", "almond", "hazelnut", "praline", "butter", "cookie", "macaron", "waffle", "donut", "tiramisu", "toasted", "cider", "ciderhouse"]
+    },
+    "草本 Herbal": {
+      "keywords": ["eucalyptus", "sage", "mint", "peppermint", "spearmint", "rosemary", "basil", "thyme", "lemongrass", "verbena", "tea", "matcha", "green tea", "herb", "herbal", "bay leaf", "tarragon", "parsley", "earthy", "herbaceous", "aromatic"]
+    },
+    "海洋 Aquatic": {
+      "keywords": ["ocean", "sea", "marine", "beach", "sea salt", "salt", "aqua", "aquatic", "coastal", "shore", "seaside"]
+    },
+    "清新 Fresh": {
+      "keywords": ["fresh", "clean", "linen", "cotton", "rain", "breeze", "soap", "powder", "laundry", "bamboo", "spring"]
+    },
+    "东方 Oriental": {
+      "keywords": ["amber", "spice", "spiced", "cinnamon", "clove", "oud", "musk", "patchouli", "frankincense", "myrrh", "incense", "saffron", "cardamom", "nutmeg", "ginger", "pepper", "anise", "star anise"]
+    },
+    "混合 Mix": {
+      "keywords": []
+    }
+  },
+  "match_rules": {
+    "longest_first": true,
+    "_note": "长词优先匹配。例如 fireside 应先于 fir 被匹配，避免误判。",
+    "word_boundary_for": ["fir", "tea", "salt", "rose", "pine", "cake", "spring"],
+    "_word_boundary_note": "这些短词使用 \\b 词边界匹配，避免子串误判（如 fir 不应匹配 fireside）"
+  }
+}

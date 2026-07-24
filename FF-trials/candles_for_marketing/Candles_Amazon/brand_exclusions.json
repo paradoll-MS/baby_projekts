@@ -1,0 +1,29 @@
+{
+  "_description": "品牌名 + 材质词 + 功能性词排除表。搜索后从文本中清洗掉，避免误判为香调。",
+  "unscented_detection": {
+    "_note": "搜索前判断，命中则直接标记为无香型，不搜索",
+    "patterns": ["unscented", "fragrance free", "fragrance-free", "scent free", "scent-free", "non scented", "non-scented"],
+    "electronic": ["flameless", "battery operated", "battery-operated", "led candle", "led floating", "fake candle", "flickering flameless", "electronic candle"]
+  },
+  "clean_patterns": {
+    "_note": "搜索后、提取关键词前，从文本中移除以下内容",
+    "brands": [
+      "WoodWick", "Yankee Candle", "Bath & Body Works", "Capri Blue", "Voluspa",
+      "NEST New York", "Diptyque", "Thymes", "Chesapeake Bay", "Stonebriar",
+      "LA JOLIE MUSE", "M&SENSE", "M SENSE", "Sand + Fog", "Sand and Fog",
+      "Salt & Stone", "Salt and Stone", "Sweet Water Decor", "Village Candle",
+      "Glade", "TIKI", "Hosley", "Lulu Candles", "Maison Louis Marie",
+      "PHD CAKE", "Homemory", "Homsolver", "Younift", "YOROXRG", "Niyewsor",
+      "Beanlieve", "MOZEAL", "MontoPack", "Homjoy", "Howemon", "Hyoola",
+      "Irenare", "AOOVOO", "BFJLIFE", "KONNI", "LUMELOOM", "CANDWAX",
+      "Foton", "Housecret", "Jonico", "Kedtui", "MTLEE", "Royal Imports",
+      "Tuyai", "Viyffo", "96NORTH", "1OAK", "Candle Warmers ETC",
+      "HomeLights", "Hollowick", "Manly Indulgence", "Our Own Candle Company"
+    ],
+    "wick_materials": ["wood wick", "wooden wick", "cotton wick", "lead-free wick"],
+    "wax_bases": ["soy wax", "coconut wax", "beeswax", "paraffin wax", "palm wax", "natural wax"],
+    "functional_words": ["smokeless", "dripless", "long-burning", "long burning", "hand-poured", "hand poured", "highly scented", "highly-scented", "room-filling", "non-toxic", "non toxic", "clean-burning", "clean burning"],
+    "scene_words": ["gifts for", "birthday", "christmas", "wedding", "holiday", "mothers day", "fathers day", "valentines", "anniversary", "graduation", "retirement", "thanksgiving"],
+    "spec_words": ["pack of", "count", "hour burn"]
+  }
+}

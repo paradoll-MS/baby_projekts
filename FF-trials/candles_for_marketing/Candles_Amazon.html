@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Candles_Amazon - 香型分类器</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#f5f5f5; color:#333; }
+.header { background:#fff; padding:20px 30px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.header h1 { font-size:22px; margin-bottom:4px; }
+.header p { color:#888; font-size:13px; }
+.container { max-width:1400px; margin:20px auto; padding:0 20px; }
+.upload-zone { border:2px dashed #ccc; border-radius:12px; padding:40px; text-align:center; background:#fff; cursor:pointer; transition:.2s; }
+.upload-zone:hover { border-color:#888; background:#fafafa; }
+.upload-zone input { display:none; }
+.controls { display:flex; gap:12px; align-items:center; margin:16px 0; flex-wrap:wrap; }
+.controls label { font-size:14px; color:#666; }
+.controls input[type=number] { width:80px; padding:6px 8px; border:1px solid #ddd; border-radius:6px; }
+.btn { padding:10px 24px; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; }
+.btn-primary { background:#1a73e8; color:#fff; }
+.btn-primary:hover { background:#1557b0; }
+.btn-primary:disabled { background:#ccc; cursor:not-allowed; }
+.btn-outline { background:#fff; border:1px solid #ddd; }
+.progress-bar { height:4px; background:#e0e0e0; border-radius:2px; margin:12px 0; overflow:hidden; }
+.progress-bar div { height:100%; background:#1a73e8; transition:width .3s; }
+.status { font-size:13px; color:#666; margin:8px 0; }
+.summary { font-size:15px; margin:12px 0; }
+.summary b { color:#1a73e8; }
+table { width:100%; border-collapse:collapse; font-size:14px; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+th { background:#f0f0f0; padding:10px 14px; text-align:left; font-weight:600; }
+td { padding:10px 14px; border-top:1px solid #f0f0f0; }
+td a { color:#1a73e8; text-decoration:none; }
+.debug { margin-top:20px; }
+.debug summary { cursor:pointer; font-size:13px; color:#888; margin-bottom:8px; }
+.debug pre { font-size:11px; background:#fafafa; padding:10px; border-radius:6px; max-height:300px; overflow:auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Candles_Amazon</h1>
+  <p>拖入 Excel → 自动分类 → 层级统计表（纯前端，无需安装）</p>
+</div>
+
+<div class="container">
+  <!-- Upload -->
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <p style="font-size:32px; margin-bottom:8px;">📁</p>
+    <p>拖入 Excel 文件 或 点击选择</p>
+    <p style="font-size:12px;color:#aaa;margin-top:4px;">商品名在第 9 列</p>
+    <input type="file" id="fileInput" accept=".xlsx" onchange="handleFile(event)">
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <label>处理数量</label>
+    <input type="number" id="maxN" value="30" min="1">
+    <button class="btn btn-primary" id="runBtn" onclick="run()" disabled>▶ 开始分类</button>
+    <button class="btn btn-outline" onclick="downloadExcel()" id="dlBtn" disabled>📥 下载 Excel</button>
+  </div>
+
+  <div class="progress-bar"><div id="progressFill" style="width:0%"></div></div>
+  <div class="status" id="status"></div>
+  <div class="summary" id="summary"></div>
+
+  <div id="tableContainer"></div>
+</div>
+
+<script>
+// ===== 香调字典 =====
+const FRAGRANCE_DICT = {"families":{"柑橘 Citrus":{"keywords":["citrus","orange","lemon","lime","grapefruit","bergamot","tangerine","mandarin","yuzu","citron","citronella"]},"花香 Floral":{"keywords":["lavender","rose","jasmine","peony","lily","gardenia","lilac","floral","pink sands","cherry blossom","neroli","ylang","chamomile","geranium","freesia","tuberose","honeysuckle","violet","iris","orchid","magnolia","daisy","sunflower","camellia","hibiscus"]},"果香 Fruity":{"keywords":["apple","pear","peach","berry","fruit","fruity","coconut","mango","pineapple","pomegranate","fig","cherry","champagne","prosecco","watermelon","melon","guava","lychee","cranberry","plum","blackberry","strawberry","raspberry","passion fruit"]},"木质 Woody":{"keywords":["sandalwood","cedar","cedarwood","pine","fir","balsam","mahogany","teakwood","teak","oak","birch","cashmere","vetiver","santal","bois","cypress","juniper","spruce","evergreen","palo santo","driftwood","fireside","smoke","smoked","redwood","guaiac","woody","wood"]},"美食 Gourmand":{"keywords":["vanilla","cupcake","cake","caramel","pumpkin","maple","creme","sugar","sugared","honey","chocolate","cocoa","coffee","cream","marshmallow","almond","hazelnut","praline","butter","cookie","macaron","waffle","donut","tiramisu","toasted","cider","ciderhouse"]},"草本 Herbal":{"keywords":["eucalyptus","sage","mint","peppermint","spearmint","rosemary","basil","thyme","lemongrass","verbena","tea","matcha","green tea","herb","herbal","bay leaf","tarragon","parsley","earthy","herbaceous","aromatic"]},"海洋 Aquatic":{"keywords":["ocean","sea","marine","beach","sea salt","salt","aqua","aquatic","coastal","shore","seaside"]},"清新 Fresh":{"keywords":["fresh","clean","linen","cotton","rain","breeze","soap","powder","laundry","bamboo","spring"]},"东方 Oriental":{"keywords":["amber","spice","spiced","cinnamon","clove","oud","musk","patchouli","frankincense","myrrh","incense","saffron","cardamom","nutmeg","ginger","pepper","anise","star anise"]},"混合 Mix":{"keywords":[]}},"match_rules":{"word_boundary_for":["fir","tea","salt","rose","pine","cake","spring"]}};
+
+// 构建关键词→家族映射
+const WORD_BOUNDARY = new Set(FRAGRANCE_DICT.match_rules.word_boundary_for);
+const KEYWORD_TO_FAMILY = {};
+const FAMILY_CN = {};
+const ALL_KEYWORDS = [];
+
+for (const [family, info] of Object.entries(FRAGRANCE_DICT.families)) {
+    const cn = family.split(' ')[0];
+    FAMILY_CN[family] = cn;
+    for (const kw of info.keywords) {
+        KEYWORD_TO_FAMILY[kw.toLowerCase()] = family;
+        ALL_KEYWORDS.push(kw.toLowerCase());
+    }
+}
+ALL_KEYWORDS.sort((a,b) => b.length - a.length); // 长词优先
+
+// 无香检测
+const UNSCENTED_PATTERNS = [
+    'unscented', 'fragrance[-]?free', 'scent[-]?free', 'non[-]?scented',
+    'flameless', 'battery[-]?operated', 'led candle', 'fake candle',
+    'flickering flameless', 'electronic candle', 'remote control candle'
+];
+
+function detectUnscented(text) {
+    const t = text.toLowerCase();
+    for (const pat of UNSCENTED_PATTERNS) {
+        const re = new RegExp(pat.replace(/\[-\]\?/g, '[-]?'), 'i');
+        if (re.test(t)) {
+            if (/flameless|battery|led|fake|flickering|electronic|remote/i.test(pat))
+                return '无香型（电子/LED）';
+            return '无香型';
+        }
+    }
+    return null;
+}
+
+// 关键词提取
+function extractKeywords(text) {
+    const t = text.toLowerCase();
+    const matched = [];
+    const matchedSpans = [];
+    for (const kw of ALL_KEYWORDS) {
+        let pattern;
+        if (WORD_BOUNDARY.has(kw)) {
+            pattern = new RegExp('\\b' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+        } else {
+            pattern = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        }
+        let m;
+        while ((m = pattern.exec(t)) !== null) {
+            const start = m.index, end = start + m[0].length;
+            const overlaps = matchedSpans.some(([s,e]) => !(end <= s || start >= e));
+            if (!overlaps) {
+                matched.push(kw);
+                matchedSpans.push([start, end]);
+            }
+        }
+    }
+    // 去重保持顺序
+    const seen = new Set();
+    const unique = [];
+    for (const kw of matched) {
+        if (!seen.has(kw)) { seen.add(kw); unique.push(kw); }
+    }
+    return unique;
+}
+
+// 大类收敛
+const SKIP_SECONDARY = new Set(['fresh','clean','cotton','cake']);
+
+function resolveFamily(keywords, searchOnlyKeywords) {
+    // 过滤
+    let kws = keywords.filter(k => !SKIP_SECONDARY.has(k));
+    if (kws.length >= 8) return { family: '混合 Mix', keywords: kws };
+
+    // 加权
+    const scores = {};
+    for (const kw of kws) {
+        const fam = KEYWORD_TO_FAMILY[kw];
+        if (!fam) continue;
+        const w = searchOnlyKeywords.has(kw) ? 1 : 2;
+        scores[fam] = (scores[fam] || 0) + w;
+    }
+
+    if (Object.keys(scores).length === 0) return { family: '未识别', keywords: [] };
+
+    // 最高分
+    let best = '', bestScore = -1;
+    for (const [fam, s] of Object.entries(scores)) {
+        if (s > bestScore || (s === bestScore && fam < best)) { best = fam; bestScore = s; }
+    }
+
+    const filtered = kws.filter(k => KEYWORD_TO_FAMILY[k] === best);
+    return { family: best, keywords: filtered };
+}
+
+// 分类单个产品
+function classifyOne(name) {
+    // 阶段1: 无香检测
+    const unscented = detectUnscented(name);
+    if (unscented) return { name, family: unscented, keywords: [], method: 'local' };
+
+    // 从商品名提取关键词
+    const allKws = extractKeywords(name);
+    // 所有关键词都在商品名中，都不是 search-only
+    const resolved = resolveFamily(allKws, new Set());
+
+    return {
+        name,
+        family: resolved.family,
+        keywords: resolved.keywords,
+        method: 'local'
+    };
+}
+
+// ===== State =====
+let products = [];
+let results = [];
+
+// ===== File handling =====
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#1a73e8'; });
+dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = '#ccc');
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '#ccc';
+    handleFile({ target: { files: [e.dataTransfer.files[0]] } });
+});
+
+function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        const wb = XLSX.read(ev.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        products = [];
+        for (let r = 2; r < data.length; r++) { // row 3 (0-indexed: 2)
+            const name = data[r][8]; // column 9 (0-indexed: 8)
+            if (name && String(name).trim()) products.push(String(name).trim());
+        }
+        document.getElementById('status').textContent = `已读取 ${products.length} 条商品`;
+        document.getElementById('maxN').max = products.length;
+        document.getElementById('maxN').value = Math.min(30, products.length);
+        document.getElementById('runBtn').disabled = false;
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ===== Run =====
+async function run() {
+    const maxN = parseInt(document.getElementById('maxN').value) || 30;
+    const n = Math.min(maxN, products.length);
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('dlBtn').disabled = true;
+
+    results = [];
+    const status = document.getElementById('status');
+    const fill = document.getElementById('progressFill');
+
+    for (let i = 0; i < n; i++) {
+        const r = classifyOne(products[i]);
+        results.push(r);
+        fill.style.width = ((i + 1) / n * 100) + '%';
+        status.textContent = `[${i+1}/${n}] ${r.family} | ${products[i].substring(0, 50)}`;
+        // 让出 UI 线程
+        if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('dlBtn').disabled = false;
+    renderStats();
+}
+
+// ===== Stats & Table =====
+const MACARON = {
+    "柑橘 Citrus": ["#FFF8D0","#FFEE99"],
+    "花香 Floral": ["#FFE0E8","#FFB8C6"],
+    "果香 Fruity": ["#FFE0E0","#FFB8B8"],
+    "木质 Woody": ["#FFE8D0","#FFCC99"],
+    "美食 Gourmand": ["#FFE4CC","#FFC899"],
+    "草本 Herbal": ["#D8F0D8","#B0E0B0"],
+    "海洋 Aquatic": ["#D0E8FF","#A8D4FF"],
+    "清新 Fresh": ["#D4F5E0","#A8E6C1"],
+    "东方 Oriental": ["#EDE0F5","#D4B8E8"],
+    "混合 Mix": ["#F0F0F0","#D0D0D0"],
+};
+
+function renderStats() {
+    const valid = results.filter(r =>
+        !r.family.includes('无香') && !r.family.includes('未识别') && !r.family.includes('失败')
+    );
+    const total = valid.length;
+    const unscented = results.filter(r => r.family.includes('无香')).length;
+    const classified = results.filter(r =>
+        !r.family.includes('无香') && !r.family.includes('未识别') && !r.family.includes('失败')
+    ).length;
+
+    document.getElementById('summary').innerHTML =
+        `✅ 已分类 <b>${classified}</b> 条，无香 <b>${unscented}</b> 条，共 <b>${results.length}</b> 条`;
+
+    // 构建 stats
+    const familyOrder = Object.keys(FRAGRANCE_DICT.families);
+    const stats = {};
+    for (const fam of familyOrder) stats[fam] = { products: new Set(), sub: {} };
+
+    valid.forEach((r, idx) => {
+        const pid = idx + 1;
+        const isMix = r.family === '混合 Mix';
+        // 一级
+        for (const fam of familyOrder) {
+            if (r.family === fam) stats[fam].products.add(pid);
+        }
+        // 二级
+        for (const kw of r.keywords) {
+            if (isMix) {
+                if (!stats['混合 Mix'].sub[kw]) stats['混合 Mix'].sub[kw] = new Set();
+                stats['混合 Mix'].sub[kw].products = stats['混合 Mix'].sub[kw];
+                if (!stats['混合 Mix'].sub[kw].add) stats['混合 Mix'].sub[kw] = new Set();
+                stats['混合 Mix'].sub[kw] = stats['混合 Mix'].sub[kw] || new Set();
+            }
+        }
+        if (!isMix) {
+            for (const kw of r.keywords) {
+                const fam = KEYWORD_TO_FAMILY[kw];
+                if (!fam) continue;
+                if (!stats[fam].sub[kw]) stats[fam].sub[kw] = new Set();
+                stats[fam].sub[kw].add(pid);
+                stats[fam].products.add(pid);
+            }
+        }
+    });
+
+    // 也处理 Mix 的二级
+    valid.forEach((r, idx) => {
+        if (r.family === '混合 Mix') {
+            const pid = idx + 1;
+            for (const kw of r.keywords) {
+                if (!stats['混合 Mix'].sub[kw]) stats['混合 Mix'].sub[kw] = new Set();
+                stats['混合 Mix'].sub[kw].add(pid);
+            }
+        }
+    });
+
+    // 排序
+    const sortedFams = Object.entries(stats).sort((a,b) => b[1].products.size - a[1].products.size);
+
+    // 构建 HTML table
+    let html = `<table><thead><tr>
+        <th>大类</th><th>数量</th><th>占比</th><th>细分</th><th>数量</th><th>占比</th></tr></thead><tbody>`;
+
+    for (const [fam, s] of sortedFams) {
+        const famCount = s.products.size;
+        if (famCount === 0) continue;
+        const famPct = total > 0 ? (famCount / total * 100).toFixed(1) : 0;
+        const colors = MACARON[fam] || ['#F5F5F5','#E0E0E0'];
+        const famBg = famPct > 30 ? colors[1] : colors[0];
+        const isMix = fam === '混合 Mix';
+
+        if (isMix) {
+            // 一行汇总
+            html += `<tr>
+                <td style="background:${famBg};font-weight:600">${fam}</td>
+                <td style="background:${famBg};text-align:center">${famCount}</td>
+                <td style="background:${famBg};text-align:center">${famPct}%</td>
+                <td style="background:${famBg};text-align:center">—</td>
+                <td style="background:${famBg};text-align:center">—</td>
+                <td style="background:${famBg};text-align:center">—</td>
+            </tr>`;
+        } else {
+            const sortedKw = Object.entries(s.sub).sort((a,b) => b[1].size - a[1].size);
+            const activeKw = sortedKw.filter(([kw,set]) => set.size > 0);
+            if (activeKw.length === 0) activeKw.push(['—', { size: famCount }]);
+
+            let first = true;
+            for (const [kw, kwSet] of activeKw) {
+                const kwCount = typeof kwSet.size === 'number' ? kwSet.size : kwSet.length || 0;
+                const kwPct = total > 0 ? (kwCount / total * 100).toFixed(1) : 0;
+                const kwBg = kwPct > 15 ? colors[1] : colors[0];
+                html += '<tr>';
+                if (first) {
+                    html += `<td style="background:${famBg};font-weight:600" rowspan="${activeKw.length}">${fam}</td>`;
+                    html += `<td style="background:${famBg};text-align:center" rowspan="${activeKw.length}">${famCount}</td>`;
+                    html += `<td style="background:${famBg};text-align:center" rowspan="${activeKw.length}">${famPct}%</td>`;
+                    first = false;
+                }
+                html += `<td style="background:${kwBg}">${kw}</td>`;
+                html += `<td style="background:${kwBg};text-align:center">${kwCount}</td>`;
+                html += `<td style="background:${kwBg};text-align:center">${kwPct}%</td>`;
+                html += '</tr>';
+            }
+        }
+    }
+    html += '</tbody></table>';
+    document.getElementById('tableContainer').innerHTML = html;
+
+    // Debug
+    let dbg = '';
+    results.forEach((r,i) => {
+        dbg += `[${i+1}] ${r.family} | ${r.keywords.join(', ')} | ${r.name.substring(0,60)}\n`;
+    });
+    document.getElementById('tableContainer').innerHTML +=
+        `<details class="debug"><summary>🔍 查看原始分类结果</summary><pre>${dbg}</pre></details>`;
+}
+
+// ===== Download =====
+function downloadExcel() {
+    const wb = XLSX.utils.book_new();
+    // Sheet 1: 分类详情
+    const rows1 = [['产品名','大类','细分']];
+    for (const r of results) {
+        rows1.push([r.name, r.family, r.keywords.join(', ')]);
+    }
+    const ws1 = XLSX.utils.aoa_to_sheet(rows1);
+    ws1['!cols'] = [{wch:80},{wch:30},{wch:50}];
+    XLSX.utils.book_append_sheet(wb, ws1, '分类详情');
+
+    // Sheet 2: 层级统计
+    const valid = results.filter(r =>
+        !r.family.includes('无香') && !r.family.includes('未识别') && !r.family.includes('失败')
+    );
+    const total = valid.length;
+    const stats = {};
+    for (const fam of Object.keys(FRAGRANCE_DICT.families)) stats[fam] = { products: new Set(), sub: {} };
+    valid.forEach((r, idx) => {
+        const pid = idx + 1;
+        for (const fam of Object.keys(FRAGRANCE_DICT.families)) {
+            if (r.family === fam) stats[fam].products.add(pid);
+        }
+        if (r.family === '混合 Mix') {
+            for (const kw of r.keywords) {
+                if (!stats['混合 Mix'].sub[kw]) stats['混合 Mix'].sub[kw] = new Set();
+                stats['混合 Mix'].sub[kw].add(pid);
+            }
+        } else {
+            for (const kw of r.keywords) {
+                const fam = KEYWORD_TO_FAMILY[kw];
+                if (!fam) continue;
+                if (!stats[fam].sub[kw]) stats[fam].sub[kw] = new Set();
+                stats[fam].sub[kw].add(pid);
+            }
+        }
+    });
+
+    const rows2 = [['大类','大类数量','大类占比','细分','细分数量','细分占比']];
+    for (const [fam, s] of Object.entries(stats)) {
+        const fc = s.products.size;
+        if (fc === 0) continue;
+        const fp = (fc/total*100).toFixed(1) + '%';
+        if (fam === '混合 Mix') {
+            rows2.push([fam, fc, fp, '', '', '']);
+        } else {
+            const sortedKw = Object.entries(s.sub).sort((a,b) => b[1].size - a[1].size);
+            const active = sortedKw.filter(([kw,set]) => set.size > 0);
+            if (active.length === 0) {
+                rows2.push([fam, fc, fp, '', '', '']);
+            }
+            let first = true;
+            for (const [kw, kwSet] of active) {
+                const kc = kwSet.size;
+                const kp = (kc/total*100).toFixed(1) + '%';
+                rows2.push([first ? fam : '', first ? fc : '', first ? fp : '', kw, kc, kp]);
+                first = false;
+            }
+        }
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(rows2);
+    ws2['!cols'] = [{wch:20},{wch:12},{wch:12},{wch:20},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws2, '香型层级统计');
+
+    XLSX.writeFile(wb, 'Candles_Amazon_分类结果.xlsx');
+}
+</script>
+</body>
+</html>
